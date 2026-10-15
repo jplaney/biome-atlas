@@ -56,9 +56,11 @@ const sampleMarkers = L.layerGroup();
 
 const map = L.map("map", { preferCanvas: true, worldCopyJump: true,
                            minZoom: 2, maxZoom: 7 }).setView([25, 10], 2);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-  attribution: "© OpenStreetMap © CARTO · biomes: RESOLVE/WWF · climate: Open-Meteo",
-  subdomains: "abcd",
+// Esri "Dark Gray Base" — keyless, no watermark on public origins (unlike CARTO,
+// which stamps "API KEY REQUIRED" on non-localhost sites). Esri tiles use z/y/x.
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+  attribution: "Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors · biomes: RESOLVE/WWF · climate: Open-Meteo",
+  maxZoom: 16,
 }).addTo(map);
 sampleMarkers.addTo(map);
 
