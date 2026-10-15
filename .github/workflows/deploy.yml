@@ -2,24 +2,22 @@ name: Deploy Biome Atlas
 
 on:
   push:
-    branches: [main]          # deploy on every code change
+    branches: [main]          # code change → deploy committed files immediately
   schedule:
-    - cron: "0 6 * * *"       # 06:00 UTC daily — refresh today.json
-  workflow_dispatch:          # manual "Run workflow" button
+    - cron: "0 6 * * *"       # 06:00 UTC daily → refresh today.json, then deploy
+  workflow_dispatch:          # manual run also refreshes
 
-# Least-privilege permissions the Pages deploy needs
 permissions:
-  contents: read
+  contents: write             # scheduled run commits the refreshed today.json
   pages: write
   id-token: write
 
-# Never run two deploys at once
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -27,16 +25,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # --- Live refresh ONLY on schedule / manual, never on a push ---
+      # Pushes skip this entirely, so a code change deploys instantly instead of
+      # waiting on ~224 Open-Meteo calls that get rate-limited on shared CI IPs.
+      - name: Set up Python
+        if: github.event_name != 'push'
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # Regenerate the daily snapshot from live forecasts (pure stdlib, no pip).
-      # Non-fatal if a feed hiccups — the committed today.json is the fallback.
-      - name: Refresh today.json
-        run: python3 -m pipeline.build_today || echo "build_today had issues; using committed today.json"
+      - name: Refresh today.json (live forecasts)
+        if: github.event_name != 'push'
+        run: python3 -m pipeline.build_today || echo "build_today had issues; keeping committed today.json"
 
-      # Assemble the static site: frontend at root, data under /data/processed.
+      - name: Commit refreshed snapshot
+        if: github.event_name != 'push'
+        continue-on-error: true           # a failed commit/push must not block the deploy
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/processed/today.json; then
+            echo "today.json unchanged — nothing to commit"
+          else
+            git add data/processed/today.json
+            git commit -m "chore: refresh today.json [skip ci]"
+            git push
+          fi
+
+      # --- Assemble + deploy (always) ---
+      # Uses today.json on disk: the committed one on a push, the freshly built
+      # one on a scheduled/manual run.
       - name: Assemble site
         run: |
           mkdir -p _site/data/processed

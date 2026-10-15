@@ -30,12 +30,19 @@ That's it. The push triggers the workflow; in ~5 minutes your site is live at
 
 ## What happens automatically
 
-- **On every push to `main`** → rebuild + redeploy.
-- **Daily at 06:00 UTC** → the workflow re-runs `build_today` (fresh live
-  forecasts) and redeploys, so "Today" stays current. Adjust the `cron:` in
+- **On every push to `main`** → deploys the *committed* files immediately. It
+  does **not** run the live fetch, so pushes are fast and never blocked by
+  Open-Meteo rate-limiting on CI runners.
+- **Daily at 06:00 UTC** (and on a manual *Run workflow*) → re-runs `build_today`
+  for fresh forecasts, commits the updated `today.json` back to `main`
+  (`chore: refresh today.json [skip ci]`), and deploys it. This can be slow on a
+  shared runner IP, but it's unattended, so that's fine. Adjust the `cron:` in
   `deploy.yml` to change the time.
 - The earth-activity overlays (quakes/volcanoes/fires/…) are fetched in each
   visitor's browser, so they're always live regardless of the deploy schedule.
+
+If you'd rather refresh the daily data from your own machine (no CI rate limits),
+run `python3 -m pipeline.build_today` locally and `git push` — the push deploys it.
 
 ## Updating the long-term data (rare)
 
