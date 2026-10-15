@@ -67,7 +67,16 @@ aside { scrollbar-width: thin; scrollbar-color: #24333f transparent; }
 }
 aside h2 { margin: 0 0 3px; font-size: 15px; letter-spacing: .3px; }
 #left > h2 { padding-right: 28px; }
-#right > h2 { padding-left: 28px; }               /* clear the collapse button */
+#right > .tabs { margin-left: 28px; }              /* clear the collapse button */
+
+/* right-panel tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 10px; border-bottom: 1px solid #24333f; }
+.tabs [role=tab] { font: inherit; font-size: 13px; font-weight: 650; padding: 4px 8px 7px; margin-bottom: -1px; cursor: pointer;
+  background: none; border: 0; border-bottom: 2px solid transparent; color: #7f93a8; white-space: nowrap; }
+.tabs [role=tab]:hover { color: #cdd9e5; }
+.tabs [role=tab][aria-selected=true] { color: #e7eef5; border-bottom-color: #9fd0ff; }
+.tab-count { font-size: 10px; font-weight: 600; color: #9fb2c4; background: #1c2c3b; border-radius: 8px; padding: 1px 6px; margin-left: 2px; }
+.tab-count:empty { display: none; }
 .sub { margin: 0 0 14px; font-size: 11.5px; line-height: 1.5; color: #9fb2c4; }
 .tag { font-size: 11px; font-weight: 500; color: #7f93a8; margin-left: 4px; }
 .tag.stale { color: #ffb454; cursor: help; }
@@ -214,6 +223,49 @@ aside h2 { margin: 0 0 3px; font-size: 15px; letter-spacing: .3px; }
   .legend::-webkit-scrollbar { display: none; }
   aside { overflow: visible; border: 0 !important; border-top: 1px solid #223141 !important; }
   .collapse-btn { display: none; }
-  #left > h2, #right > h2 { padding: 0; }
+  #left > h2 { padding: 0; }
+  #right > .tabs { margin-left: 0; }
   .haz-control { min-width: 0; }
 }
+
+/* ── earth-activity table (right panel, "Earth activity" tab) ───────────── */
+.ev-filters { margin-bottom: 10px; }
+.toggles .chipbtn .cnt { margin-left: 4px; font-size: 10px; color: #8ea2b6; font-variant-numeric: tabular-nums; }
+.toggles .chipbtn.on .cnt { color: #cdd9e5; }
+.toggles .chipbtn.empty:not(.on) { opacity: .55; }
+.ev-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11.5px; }
+.ev-table th { position: sticky; top: -16px; z-index: 1; background: #111a25; text-align: left; font-weight: 600; font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: .6px; color: #8ea2b6; padding: 6px 4px; border-bottom: 1px solid #24333f; white-space: nowrap; }
+.ev-table th[data-col] { cursor: pointer; user-select: none; }
+.ev-table th[data-col]:hover { color: #e7eef5; }
+.ev-table th.sorted { color: #e7eef5; }
+.ev-table th.sorted::after { content: " " attr(data-dir); font-size: 8px; }
+.ev-table td { padding: 5px 4px; border-bottom: 1px solid #18232f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-table .ev-ico { width: 22px; text-align: center; padding-left: 2px; padding-right: 0; }
+.ev-table .ev-size { width: 58px; text-align: right; font-variant-numeric: tabular-nums; }
+.ev-table .ev-size small { font-size: 9.5px; color: #8ea2b6; }
+.ev-table .ev-time { width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: #9fb2c4; }
+.ev-table td.ev-title { white-space: normal; line-height: 1.3; }
+.ev-title > div:first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ev-title .ev-biome { margin-top: 2px; font-size: 10.5px; color: #93a6ba; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-biome .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.ev-biome.none { color: #5d7084; font-style: italic; }
+.ev-table tbody tr { cursor: pointer; }
+.ev-table tbody tr:hover, .ev-table tbody tr.hover { background: #1a2836; }
+.ev-table tbody tr.hover td:first-child { box-shadow: inset 2px 0 #9fd0ff; }
+.ev-table tbody tr.off td:not(.ev-ico), .ev-table tbody tr.off .ev-biome { color: #6f8296; }
+.ev-table tbody tr.off .ev-ico { opacity: .45; }
+.alert { display: inline-block; padding: 0 5px; border-radius: 6px; font-size: 10px; font-weight: 600; text-transform: capitalize; }
+.alert-green { color: #64d178; background: rgba(100,209,120,.12); }
+.alert-orange { color: #ffa94d; background: rgba(255,169,77,.14); }
+.alert-red { color: #ff6b6b; background: rgba(255,107,107,.15); }
+.ev-status { padding: 18px 8px; text-align: center; font-size: 12px; font-style: italic; color: #7488a0; }
+
+/* hover-a-row locator ring on the map */
+.leaflet-div-icon.hz-ring { background: transparent; border: 0; pointer-events: none; }
+.hz-ring::before, .hz-ring::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #9fd0ff;
+  box-shadow: 0 0 10px rgba(159,208,255,.7); }
+.hz-ring::after { animation: ring-pulse 1.1s ease-out infinite; }
+@keyframes ring-pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hz-ring::after { animation: none; } }
+@media (max-width: 860px) { .ev-table th { top: 0; } }

@@ -356,6 +356,8 @@ Promise.all([
   buildToggles();
   buildToday();
   buildAnomalyList();
+  indexBiomes(geo);
+  renderEvents();                                   // fill in the events' biome column
   map.invalidateSize();
   document.getElementById("loading").remove();
 }).catch(err => {
@@ -407,6 +409,10 @@ document.getElementById("right-toggle").onclick = () => { rightOpen = !rightOpen
 // ── earth-activity overlays (live natural hazards — not human activity) ───────
 // Three CORS-enabled, no-key feeds, each loaded independently and fault-tolerant:
 // a failing feed shows "—" and never breaks the map or the other overlays.
+// Every feed is normalized to plain event records first, so the map markers and
+// the "Earth activity" table are built from one list:
+//   { key, icon, lat, lon, title, time (ms|null), size (number|null, for sorting),
+//     sizeLabel (html), popup (html), url, marker }
 // Icon size scales *inversely* with zoom: bigger when zoomed out (easy to spot),
 // smaller when zoomed in (don't blanket the map). z2 → ~22px, z7 → ~12px.
 const hazSize = () => Math.round(Math.min(24, 22 - (map.getZoom() - 2) * 2));
@@ -414,12 +420,10 @@ const hzIcon = (emoji, size = hazSize()) => L.divIcon({
   html: `<span style="font-size:${Math.round(size * 0.8)}px">${emoji}</span>`,
   className: "hz-icon", iconSize: [size, size], iconAnchor: [size / 2, size / 2],
 });
-function emojiMarker(lat, lon, emoji, popupHtml) {
-  const m = L.marker([lat, lon], { icon: hzIcon(emoji) });
-  m._emoji = emoji;                                 // remembered so we can resize on zoom
-  if (popupHtml) m.bindPopup(popupHtml);
-  return m;
-}
+const fmtNum = v => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+const UNIT = { acres: "ac", "NM^2": "NM²" };        // short units for the table's narrow Size column
+const dateLabel = t => (t ? new Date(t).toUTCString().replace(/:\d\d GMT$/, " UTC") : "");
+const source = url => (url ? `<br><a href="${esc(url)}" target="_blank" rel="noopener">source ↗</a>` : "");
 
 // One EONET fetch for ALL categories, filtered client-side. This avoids bursts
 // (EONET throttles concurrent requests to an empty body) AND is more complete —
@@ -440,70 +444,80 @@ function eonetAll() {
   })();
 }
 
+function usgsRecord(f, extra = {}) {                // USGS GeoJSON feature → record
+  const [lon, lat] = f.geometry.coordinates, p = f.properties, mag = p.mag ?? 0;
+  return { lat, lon, title: p.place || p.title || "Earthquake", time: p.time ?? null,
+    size: mag, sizeLabel: `M${mag.toFixed(1)}`, url: p.url, ...extra,
+    popup: `<b>M${mag.toFixed(1)}</b> — ${esc(p.place || "?")}<br><small>${dateLabel(p.time)}</small>${source(p.url)}` };
+}
+
 async function loadQuakes() {                       // USGS — M2.5+, past 24h
   const d = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson").then(r => r.json());
-  const g = L.layerGroup();
-  d.features.forEach(f => {
-    const [lon, lat] = f.geometry.coordinates, mag = f.properties.mag;
-    const base = 2 + Math.max(0, mag) * 1.4;        // magnitude-driven base radius
-    const cm = L.circleMarker([lat, lon], { radius: base * hazSize() / 16, color: "#ff453a", bubblingMouseEvents: false,
-        weight: 1, fillColor: "#ff453a", fillOpacity: 0.35 });
-    cm._baseR = base;                               // remembered for zoom resizing
-    cm.bindPopup(`<b>M${(mag ?? 0).toFixed(1)}</b> — ${esc(f.properties.place || "?")}<br><small>${new Date(f.properties.time).toUTCString()}</small>`).addTo(g);
+  return d.features.map(f => usgsRecord(f));
+}
+
+async function loadTsunami() {                      // USGS quakes flagged tsunami-capable
+  const d = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson").then(r => r.json());
+  return d.features.filter(f => f.properties.tsunami === 1).map(f => {
+    const r = usgsRecord(f);
+    return { ...r, popup: `<b>🌊 Tsunami-flagged</b> ${r.popup}` };
   });
-  return { layer: g, count: d.features.length };
 }
 
 async function loadEonet(catId, days, emoji) {      // NASA EONET — volcanoes / fires / ice
   const d = await eonetAll();
   const cutoff = Date.now() - days * 864e5;
-  const g = L.layerGroup();
+  const out = [];
   (d.events || []).forEach(e => {
     if (!e.categories.some(c => c.id === catId)) return;
     const geom = e.geometry[e.geometry.length - 1];
-    if (geom.date && Date.parse(geom.date) < cutoff) return;   // per-category recency
+    const time = geom.date ? Date.parse(geom.date) : null;
+    if (time && time < cutoff) return;                         // per-category recency
     let lon, lat;
     if (geom.type === "Point") [lon, lat] = geom.coordinates;
     else if (geom.type === "Polygon") [lon, lat] = geom.coordinates[0][0];  // area event → a vertex
     else return;
-    emojiMarker(lat, lon, emoji, `<b>${emoji} ${esc(e.title)}</b><br><small>${esc((geom.date || "").slice(0, 10))}</small>`).addTo(g);
+    const v = geom.magnitudeValue, unit = UNIT[geom.magnitudeUnit] ?? geom.magnitudeUnit ?? "";
+    const url = e.link || (e.sources && e.sources[0] && e.sources[0].url);
+    out.push({ lat, lon, title: e.title, time, url,
+      size: v ?? null, sizeLabel: v != null ? `${fmtNum(v)}<small> ${esc(unit)}</small>` : "",
+      popup: `<b>${emoji} ${esc(e.title)}</b><br><small>${esc((geom.date || "").slice(0, 10))}</small>${source(url)}` });
   });
-  return { layer: g, count: g.getLayers().length };
+  return out;
 }
 
 // One GDACS fetch shared by floods + cyclones (both live in the same feed).
 let _gdacs;
 const gdacs = () => (_gdacs = _gdacs || fetch("https://www.gdacs.org/gdacsapi/api/events/geteventlist/EVENTS4APP").then(r => r.json()));
+const ALERT_RANK = { green: 1, orange: 2, red: 3 };
 async function loadGdacs(type, emoji) {
   const d = await gdacs();
-  const g = L.layerGroup();
-  (d.features || []).filter(f => f.properties && f.properties.eventtype === type).forEach(f => {
+  return (d.features || []).filter(f => f.properties && f.properties.eventtype === type &&
+                                        f.geometry && f.geometry.type === "Point").map(f => {
     const [lon, lat] = f.geometry.coordinates, p = f.properties;
-    emojiMarker(lat, lon, emoji, `<b>${emoji} ${esc(p.name || type)}</b>${p.alertlevel ? ` <small>(${esc(p.alertlevel)} alert)</small>` : ""}`).addTo(g);
+    const lvl = String(p.alertlevel || "").toLowerCase();
+    const title = p.name || p.description || p.country || type;
+    const time = Date.parse(p.todate || p.fromdate) || null;
+    const url = p.url && (p.url.report || p.url.details);
+    return { lat, lon, title, time, url, size: ALERT_RANK[lvl] ?? null,
+      sizeLabel: lvl ? `<span class="alert alert-${esc(lvl)}">${esc(p.alertlevel)}</span>` : "",
+      popup: `<b>${emoji} ${esc(title)}</b>${p.alertlevel ? ` <small>(${esc(p.alertlevel)} alert)</small>` : ""}` +
+             (p.severitydata && p.severitydata.severitytext ? `<br><small>${esc(p.severitydata.severitytext)}</small>` : "") + source(url) };
   });
-  return { layer: g, count: g.getLayers().length };
-}
-
-async function loadTsunami() {                       // USGS quakes flagged tsunami-capable
-  const d = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson").then(r => r.json());
-  const g = L.layerGroup();
-  d.features.filter(f => f.properties.tsunami === 1).forEach(f => {
-    const [lon, lat] = f.geometry.coordinates;
-    emojiMarker(lat, lon, "🌊", `<b>🌊 Tsunami-flagged</b> M${(f.properties.mag ?? 0).toFixed(1)} — ${esc(f.properties.place || "?")}`).addTo(g);
-  });
-  return { layer: g, count: g.getLayers().length };
 }
 
 const HAZARDS = [
-  { key: "earthquakes", icon: "🔴", label: "Earthquakes", load: loadQuakes },
-  { key: "volcanoes",   icon: "🌋", label: "Volcanoes",   load: () => loadEonet("volcanoes", 120, "🌋") },
-  { key: "fires",       icon: "🔥", label: "Fires",       load: () => loadEonet("wildfires", 30, "🔥") },
-  { key: "cyclones",    icon: "🌀", label: "Cyclones",    load: () => loadGdacs("TC", "🌀") },
-  { key: "floods",      icon: "💧", label: "Floods",      load: () => loadGdacs("FL", "💧") },
-  { key: "tsunami",     icon: "🌊", label: "Tsunami",     load: loadTsunami },
-  { key: "seaice",      icon: "🧊", label: "Sea ice",     load: () => loadEonet("seaLakeIce", 365, "🧊") },
+  { key: "earthquakes", icon: "🔴", label: "Earthquakes", sizeHead: "Mag",   load: loadQuakes },
+  { key: "volcanoes",   icon: "🌋", label: "Volcanoes",   sizeHead: "",      load: () => loadEonet("volcanoes", 120, "🌋") },
+  { key: "fires",       icon: "🔥", label: "Fires",       sizeHead: "Area",  load: () => loadEonet("wildfires", 30, "🔥") },
+  { key: "cyclones",    icon: "🌀", label: "Cyclones",    sizeHead: "Alert", load: () => loadGdacs("TC", "🌀") },
+  { key: "floods",      icon: "💧", label: "Floods",      sizeHead: "Alert", load: () => loadGdacs("FL", "💧") },
+  { key: "tsunami",     icon: "🌊", label: "Tsunami",     sizeHead: "Mag",   load: loadTsunami },
+  { key: "seaice",      icon: "🧊", label: "Sea ice",     sizeHead: "Area",  load: () => loadEonet("seaLakeIce", 365, "🧊") },
 ];
+const HAZ = Object.fromEntries(HAZARDS.map(h => [h.key, h]));
 const hazardLayers = {};
+const EVENTS = {};                                  // key → [record] once its feed has loaded
 const loadHaz = () => { try { const s = JSON.parse(localStorage.getItem("ba_haz_v2")); if (Array.isArray(s)) return s; } catch (e) {} return HAZARDS.map(h => h.key); };
 const hazardOn = new Set(loadHaz());
 const saveHaz = () => { try { localStorage.setItem("ba_haz_v2", JSON.stringify([...hazardOn])); } catch (e) {} };
@@ -538,19 +552,47 @@ function toggleHazard(key, on) {
   saveHaz();
   const layer = hazardLayers[key];
   if (layer) on ? layer.addTo(map) : map.removeLayer(layer);
+  renderEvents();                                   // keep the table's "overlay off" hints current
+}
+
+// Records → a layer of markers (quakes as magnitude-sized circles, the rest emoji).
+function buildHazardLayer(h, events) {
+  const g = L.layerGroup();
+  events.forEach(ev => {
+    let m;
+    if (h.key === "earthquakes") {
+      const base = 2 + Math.max(0, ev.size) * 1.4;   // magnitude-driven base radius
+      m = L.circleMarker([ev.lat, ev.lon], { radius: base * hazSize() / 16, color: "#ff453a", bubblingMouseEvents: false,
+          weight: 1, fillColor: "#ff453a", fillOpacity: 0.35 });
+      m._baseR = base;                               // remembered for zoom resizing
+    } else {
+      m = L.marker([ev.lat, ev.lon], { icon: hzIcon(h.icon) });
+      m._emoji = h.icon;                             // remembered so we can resize on zoom
+    }
+    m.bindPopup(ev.popup);
+    m.on("mouseover", () => markRow(ev, true));      // map → table: light up its row
+    m.on("mouseout", () => markRow(ev, false));
+    ev.marker = m;
+    m.addTo(g);
+  });
+  return g;
 }
 
 HAZARDS.forEach(async h => {
   const el = () => document.getElementById(`hz-${h.key}`);
   try {
-    const { layer, count } = await h.load();
-    hazardLayers[h.key] = layer;
-    if (el()) el().textContent = count;
+    const events = await h.load();
+    events.forEach(ev => { ev.key = h.key; ev.icon = h.icon; });
+    EVENTS[h.key] = events;
+    const layer = hazardLayers[h.key] = buildHazardLayer(h, events);
+    if (el()) el().textContent = events.length;
     if (hazardOn.has(h.key)) layer.addTo(map);
   } catch (err) {
+    EVENTS[h.key] = null;                            // null = feed failed (vs [] = quiet)
     if (el()) el().textContent = "—";
     console.warn("earth-activity feed failed:", h.key, err);
   }
+  renderEvents();
 });
 
 // Resize all hazard markers inversely to zoom (emoji via setIcon, quakes via radius).
@@ -560,5 +602,164 @@ function updateHazardSizes() {
     if (m._emoji) m.setIcon(hzIcon(m._emoji, size));
     else if (m._baseR != null) m.setRadius(m._baseR * scale);
   }));
+  if (ring) ring.setIcon(ringIcon());
 }
 map.on("zoomend", updateHazardSizes);
+
+// ── which biome is an event in? (point-in-polygon on the loaded geometry) ─────
+// Each polygon keeps its outer-ring bbox, so most tests are a cheap reject.
+let BIOME_INDEX = null;
+function indexBiomes(geo) {
+  BIOME_INDEX = [];
+  geo.features.forEach(f => f.geometry.coordinates.forEach(poly => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of poly[0]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    BIOME_INDEX.push({ name: f.properties.biome, bbox: [x0, y0, x1, y1], rings: poly });
+  }));
+}
+function inRing(x, y, ring) {                       // ray casting
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function biomeAt(lat, lon) {
+  if (!BIOME_INDEX) return undefined;               // geometry not loaded yet
+  for (const p of BIOME_INDEX) {
+    const [x0, y0, x1, y1] = p.bbox;
+    if (lon < x0 || lon > x1 || lat < y0 || lat > y1) continue;
+    if (inRing(lon, lat, p.rings[0]) && !p.rings.slice(1).some(h => inRing(lon, lat, h))) return p.name;
+  }
+  return null;                                      // ocean, ice sheet, lake…
+}
+
+// ── "Earth activity" tab: filterable table of every event ─────────────────────
+// Hover a row → a pulsing ring marks it on the map (even if that overlay is
+// switched off); click → fly there and open its popup.
+let evFilter = (() => { try { return localStorage.getItem("ba_ev_filter") || "all"; } catch (e) { return "all"; } })();
+let evSort = { col: "time", dir: -1 };
+let ring = null;
+const ringIcon = () => { const s = hazSize() + 18; return L.divIcon({ className: "hz-ring", iconSize: [s, s], iconAnchor: [s / 2, s / 2] }); };
+function showRing(ev) {
+  hideRing();
+  ring = L.marker([ev.lat, ev.lon], { icon: ringIcon(), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map);
+}
+function hideRing() { if (ring) { map.removeLayer(ring); ring = null; } }
+function markRow(ev, on) {
+  if (ev._row) ev._row.classList.toggle("hover", on);
+}
+function flyToEvent(ev) {
+  map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 4));
+  if (ev.marker && map.hasLayer(ev.marker)) ev.marker.openPopup();
+  else L.popup().setLatLng([ev.lat, ev.lon]).setContent(ev.popup).openOn(map);
+}
+const ago = t => {
+  if (!t) return "—";
+  const m = (Date.now() - t) / 6e4;
+  if (m < 60) return `${Math.max(1, Math.round(m))}m`;
+  if (m < 1440) return `${Math.round(m / 60)}h`;
+  if (m < 1440 * 30) return `${Math.round(m / 1440)}d`;
+  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+};
+
+function buildEventFilters() {
+  const box = document.getElementById("ev-filters");
+  box.innerHTML = "";
+  [{ key: "all", icon: "", label: "All" }, ...HAZARDS].forEach(h => {
+    const list = h.key === "all" ? Object.values(EVENTS).filter(Boolean).flat() : EVENTS[h.key];
+    const n = list === undefined ? "…" : list === null ? "—" : list.length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chipbtn" + (evFilter === h.key ? " on" : "") + (n === 0 || n === "—" ? " empty" : "");
+    b.setAttribute("aria-pressed", evFilter === h.key);
+    b.title = n === "—" ? `${h.label}: feed unavailable` : `${h.label}: ${n}`;
+    b.innerHTML = `${h.icon ? `<span aria-hidden="true">${h.icon}</span>` : ""}${h.label}<span class="cnt">${n}</span>`;
+    b.onclick = () => {
+      evFilter = h.key;
+      try { localStorage.setItem("ba_ev_filter", evFilter); } catch (e) {}
+      renderEvents();
+    };
+    box.appendChild(b);
+  });
+}
+
+function renderEvents() {
+  if (!document.getElementById("ev-body")) return;
+  buildEventFilters();
+  const all = evFilter === "all" ? Object.values(EVENTS).filter(Boolean).flat() : (EVENTS[evFilter] || []);
+  const total = Object.values(EVENTS).filter(Boolean).reduce((a, l) => a + l.length, 0);
+  document.getElementById("ev-total").textContent = total || "";
+  all.forEach(ev => { if (ev.biome === undefined) ev.biome = biomeAt(ev.lat, ev.lon); });
+
+  const { col, dir } = evSort;
+  const val = ev => col === "time" ? ev.time ?? -Infinity
+                  : col === "size" ? ev.size ?? -Infinity
+                  : ev.title.toLowerCase();
+  const rows = [...all].sort((a, b) => {
+    const x = val(a), y = val(b);
+    return (x < y ? -1 : x > y ? 1 : 0) * dir || (b.time ?? 0) - (a.time ?? 0);
+  });
+
+  // Size column header depends on what's listed (Mag / Area / Alert…).
+  const sizeHead = evFilter === "all" ? "Size" : (HAZ[evFilter].sizeHead || "Size");
+  document.querySelectorAll("#ev-table th[data-col]").forEach(th => {
+    if (th.dataset.col === "size") th.firstChild.textContent = sizeHead;
+    th.classList.toggle("sorted", th.dataset.col === col);
+    th.setAttribute("aria-sort", th.dataset.col === col ? (dir > 0 ? "ascending" : "descending") : "none");
+    th.dataset.dir = dir > 0 ? "▲" : "▼";
+  });
+
+  const body = document.getElementById("ev-body");
+  body.innerHTML = "";
+  const status = document.getElementById("ev-status");
+  const pending = HAZARDS.some(h => EVENTS[h.key] === undefined);
+  const failed = evFilter !== "all" && EVENTS[evFilter] === null;
+  status.textContent = failed ? "This feed is unavailable right now." :
+    !rows.length ? (pending ? "Loading live feeds…" : "No events of this type right now.") : "";
+  status.hidden = !status.textContent;
+
+  rows.forEach(ev => {
+    const tr = document.createElement("tr");
+    const hidden = !hazardOn.has(ev.key);
+    if (hidden) tr.classList.add("off");
+    const s = ev.biome && STATS[ev.biome];
+    tr.innerHTML = `
+      <td class="ev-ico">${ev.icon}</td>
+      <td class="ev-title"><div title="${esc(ev.title)}">${esc(ev.title)}</div>
+        ${ev.biome ? `<div class="ev-biome" title="${esc(ev.biome)}"><span class="chip" style="background:${(s && s.color) || "#888"}"></span>${esc(short(ev.biome))}</div>`
+                   : ev.biome === null ? `<div class="ev-biome none" title="Outside the mapped biomes">ocean / ice / lake</div>` : ""}</td>
+      <td class="ev-size">${ev.sizeLabel || "—"}</td>
+      <td class="ev-time" title="${esc(dateLabel(ev.time))}">${ago(ev.time)}</td>`;
+    if (hidden) tr.title = `${HAZ[ev.key].label} overlay is off — hover still shows where it is`;
+    clickable(tr, () => flyToEvent(ev), `${HAZ[ev.key].label}: ${ev.title}`);
+    tr.onmouseenter = tr.onfocus = () => { showRing(ev); markRow(ev, true); };
+    tr.onmouseleave = tr.onblur = () => { hideRing(); markRow(ev, false); };
+    ev._row = tr;
+    body.appendChild(tr);
+  });
+}
+
+document.querySelectorAll("#ev-table th[data-col]").forEach(th => {
+  const sortBy = () => {
+    const c = th.dataset.col;
+    evSort = { col: c, dir: evSort.col === c ? -evSort.dir : (c === "title" ? 1 : -1) };
+    renderEvents();
+  };
+  clickable(th, sortBy, `Sort by ${th.textContent.trim()}`);
+});
+
+// ── right-panel tabs ──────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll("#right [role=tab]").forEach(t => {
+    const on = t.dataset.tab === name;
+    t.setAttribute("aria-selected", on);
+    t.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll("#right [role=tabpanel]").forEach(p => (p.hidden = p.id !== `tab-${name}`));
+  if (name !== "events") hideRing();
+  try { localStorage.setItem("ba_tab", name); } catch (e) {}
+}
+document.querySelectorAll("#right [role=tab]").forEach(t => (t.onclick = () => showTab(t.dataset.tab)));
+showTab((() => { try { return localStorage.getItem("ba_tab") || "trend"; } catch (e) { return "trend"; } })());

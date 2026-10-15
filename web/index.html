@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Biome Atlas</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
   <div id="app">
@@ -41,20 +41,42 @@
     <div id="loading" class="loading"><span class="spinner"></span>Loading biomes…</div>
 
     <aside id="right">
-      <button class="collapse-btn" id="right-toggle" title="Collapse panel" aria-label="Collapse trend panel">›</button>
-      <div class="rail-label">Trend</div>
-      <h2>Long-term trend</h2>
-      <p class="sub">Climatological normal (2011–2020) vs the recent 12 months.
-        Hover a biome to preview, click to pin (Esc to clear).</p>
-      <div id="detail" class="detail empty">No biome selected — hover or click one on the map, the key, or the list below.</div>
-      <div class="section-label">Recent anomaly · all biomes</div>
-      <div id="anom-axis" class="axis"></div>
-      <div id="anom-list" class="anom-list"></div>
+      <button class="collapse-btn" id="right-toggle" title="Collapse panel" aria-label="Collapse right panel">›</button>
+      <div class="rail-label">Trend · Events</div>
+      <div class="tabs" role="tablist" aria-label="Right panel">
+        <button type="button" role="tab" id="tabbtn-trend" data-tab="trend" aria-controls="tab-trend" aria-selected="true">Long-term trend</button>
+        <button type="button" role="tab" id="tabbtn-events" data-tab="events" aria-controls="tab-events" aria-selected="false">Earth activity <span id="ev-total" class="tab-count"></span></button>
+      </div>
+
+      <section id="tab-trend" role="tabpanel" aria-labelledby="tabbtn-trend">
+        <p class="sub">Climatological normal (2011–2020) vs the recent 12 months.
+          Hover a biome to preview, click to pin (Esc to clear).</p>
+        <div id="detail" class="detail empty">No biome selected — hover or click one on the map, the key, or the list below.</div>
+        <div class="section-label">Recent anomaly · all biomes</div>
+        <div id="anom-axis" class="axis"></div>
+        <div id="anom-list" class="anom-list"></div>
+      </section>
+
+      <section id="tab-events" role="tabpanel" aria-labelledby="tabbtn-events" hidden>
+        <p class="sub">Live natural events from USGS, NASA EONET and GDACS.
+          Hover a row to spot it on the map; click to fly there.</p>
+        <div id="ev-filters" class="toggles ev-filters"></div>
+        <table id="ev-table" class="ev-table">
+          <thead><tr>
+            <th class="ev-ico" aria-label="Type"></th>
+            <th data-col="title">Event · biome</th>
+            <th data-col="size" class="ev-size">Size</th>
+            <th data-col="time" class="ev-time" title="Time since the latest update">Age</th>
+          </tr></thead>
+          <tbody id="ev-body"></tbody>
+        </table>
+        <div id="ev-status" class="ev-status">Loading live feeds…</div>
+      </section>
     </aside>
 
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

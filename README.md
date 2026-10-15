@@ -29,6 +29,12 @@ client-side fetches, so one feed being down never breaks the others or the app.
 Toggle each on/off; the choice is remembered (localStorage). Some layers are often
 empty (floods/tsunami are only shown when significant events are active).
 
+The right panel's **Earth activity** tab lists every event in a sortable table
+(event · size · age), filterable by type, with the **biome each event falls in**
+(point-in-polygon against the same biome geometry). Hover a row and a pulsing ring
+marks it on the map — even if that overlay is switched off; click to fly there and
+open its popup. Hovering a marker on the map lights up its row in turn.
+
 Why these variables and not more: temperature, precipitation, wind, and UV are
 free *daily* aggregates in one forecast request; humidity has no daily aggregate,
 so it's the mean of today's hourly values (same request — low overhead). The
