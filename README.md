@@ -9,13 +9,18 @@ three regions plus a key across the top:
   current forecast at its sample points, with a global-average headline. Pick
   which metrics to show via the "Show metrics" chips; your choice is remembered
   (localStorage). The visceral, less-scientific view.
-- **Center — map:** biomes colored by identity or by anomaly (toggle up top).
+- **Center — map:** biomes colored by identity or by anomaly (toggle up top;
+  anomaly mode adds a color key).
 - **Right — "Long-term trend":** the climatological view — each biome's
   **normal** (2011–2020 mean) vs its **recent 12-month anomaly**, with the
-  sample points behind the average.
+  sample points behind the average, plus a ranked bar chart of all 14 anomalies.
 
 Both side panels **collapse** (‹ / › buttons) to a thin rail, giving the map
-the full width. Click or hover any biome (in any region) to select it everywhere.
+the full width. **Hover** any biome (map, key, or anomaly list) to preview it;
+**click** to pin it — the rest of the map dims and every panel follows. Esc, the
+× button, or a click on open map clears it. If the daily snapshot is more than a
+day old, the "Today" date turns amber and shows its age. On narrow screens the
+layout stacks (map → trend → today) and the earth-activity box starts folded.
 
 **Earth-activity overlays** (top-right control) layer live *natural* events over
 the map — 🔴 earthquakes, 🌋 volcanoes, 🔥 wildfires, 🌀 cyclones, 💧 floods,

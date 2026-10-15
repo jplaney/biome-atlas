@@ -30,6 +30,18 @@ function computeAxis() {
   if (mins.length) { axisMin = Math.min(...mins); axisMax = Math.max(...maxs); }
 }
 const fmt = (v, u = "°") => (v === null || v === undefined ? "—" : `${v.toFixed(1)}${u}`);
+const signed = (v, dp = 1) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(dp)}°`);
+// Third-party feed text (quake places, event titles) goes into popup HTML — escape it.
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Make a non-button element keyboard-operable (Enter/Space) like a button.
+function clickable(el, fn, label) {
+  el.tabIndex = 0;
+  el.setAttribute("role", "button");
+  if (label) el.setAttribute("aria-label", label);
+  el.onclick = fn;
+  el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
+}
 
 // Catalog of toggle-able "today" metrics. Add a row here + a field in
 // build_today.py to introduce a new one — nothing else needs to change.
@@ -48,14 +60,19 @@ const loadEnabled = () => {
   return DEFAULT_METRICS;
 };
 const enabled = new Set(loadEnabled());
-const saveEnabled = () => localStorage.setItem("ba_metrics", JSON.stringify([...enabled]));
+const saveEnabled = () => { try { localStorage.setItem("ba_metrics", JSON.stringify([...enabled])); } catch (e) { /* ignore */ } };
 
 let STATS = {}, TODAY = {}, LAYER = null, MODE = "biome";
+// PINNED = clicked selection (sticky, dims the rest of the map); FOCUS = what's
+// highlighted right now (a hovered biome previews over the pinned one).
+let PINNED = null, FOCUS = null;
 const layersByName = {};
 const sampleMarkers = L.layerGroup();
 
-const map = L.map("map", { preferCanvas: true, worldCopyJump: true,
-                           minZoom: 2, maxZoom: 7 }).setView([25, 10], 2);
+const WORLD = [[-56, -168], [78, 180]];            // land extent, Antarctica excluded
+const map = L.map("map", { preferCanvas: true, worldCopyJump: true, zoomSnap: 0.25,
+                           minZoom: 1, maxZoom: 7 });
+map.fitBounds(WORLD);
 // Esri "Dark Gray Base" — keyless, no watermark on public origins (unlike CARTO,
 // which stamps "API KEY REQUIRED" on non-localhost sites). Esri tiles use z/y/x.
 L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
@@ -79,48 +96,110 @@ const mix = (c1, c2, t) =>
 
 // ── map styling & emphasis ───────────────────────────────────────────────────
 function styleFor(feature) {
-  const s = STATS[feature.properties.biome] || {};
+  const name = feature.properties.biome;
+  const s = STATS[name] || {};
   const fill = MODE === "anomaly" ? anomalyColor(s.anomaly)
                                   : (feature.properties.color || "#888");
-  return { color: "#0a0f16", weight: 0.4, fillColor: fill, fillOpacity: 0.82 };
+  if (name === FOCUS) return { color: "#fff", weight: 2, fillColor: fill, fillOpacity: 0.95 };
+  // Only a pinned selection dims the rest — plain hovering shouldn't flicker the map.
+  const dim = PINNED && FOCUS && name !== FOCUS;
+  return { color: "#0a0f16", weight: 0.4, fillColor: fill, fillOpacity: dim ? 0.3 : 0.82 };
 }
-function emphasize(name) {
+function restyle() {
   if (!LAYER) return;
-  Object.entries(layersByName).forEach(([n, layer]) =>
-    layer.setStyle(n === name ? { weight: 2, color: "#fff", fillOpacity: 0.9 }
-                              : styleFor(layer.feature)));
+  LAYER.setStyle(styleFor);
+  if (FOCUS && layersByName[FOCUS]) layersByName[FOCUS].bringToFront();   // outline on top
 }
 
 // ── selection (ties the three views together) ───────────────────────────────
 // kind = which sample points to drop on the map: "daily" (from the left panel)
 // or "trend" (from the map/legend/right-panel context).
-function selectBiome(name, zoom = false, kind = "trend") {
+function render(name, kind) {
+  FOCUS = name;
   showDetail(name);
   showSamples(name, kind);
-  emphasize(name);
-  document.querySelectorAll(".trow").forEach(r =>
+  restyle();
+  document.querySelectorAll("[data-b]").forEach(r =>
     r.classList.toggle("active", r.dataset.b === name));
-  if (zoom && layersByName[name]) map.fitBounds(layersByName[name].getBounds(), { maxZoom: 5 });
 }
+function selectBiome(name, zoom = false, kind = "trend") {
+  PINNED = { name, kind };
+  render(name, kind);
+  if (zoom && layersByName[name]) map.fitBounds(layersByName[name].getBounds(), { maxZoom: 5 });
+  revealRow(name);
+}
+const preview = name => render(name, "trend");
+const endPreview = () => (PINNED ? render(PINNED.name, PINNED.kind) : clearSelection());
+function clearSelection() {
+  PINNED = null; FOCUS = null;
+  sampleMarkers.clearLayers();
+  restyle();
+  document.querySelectorAll("[data-b].active").forEach(r => r.classList.remove("active"));
+  const el = document.getElementById("detail");
+  el.className = "detail empty";
+  el.textContent = "No biome selected — hover or click one on the map, the key, or the list below.";
+}
+// Scroll the biome's "today" row into view — inside the panel only, never the page
+// (on a phone the panels stack under the map, and jumping away would be jarring).
+function revealRow(name) {
+  const panel = document.getElementById("left");
+  const row = panel.querySelector(`.trow[data-b="${CSS.escape(name)}"]`);
+  if (!row || panel.scrollHeight <= panel.clientHeight + 1) return;
+  const top = row.offsetTop, bottom = top + row.offsetHeight;
+  if (top < panel.scrollTop || bottom > panel.scrollTop + panel.clientHeight)
+    panel.scrollTo({ top: top - panel.clientHeight / 3, behavior: "smooth" });
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && PINNED) clearSelection(); });
 
 // ── right panel: long-term trend ─────────────────────────────────────────────
 function showDetail(name) {
   const s = STATS[name] || {};
+  const t = TODAY[name] || {};
   const el = document.getElementById("detail");
-  el.classList.remove("empty");
+  el.className = "detail" + (PINNED && PINNED.name === name ? " pinned" : "");
   const cls = s.anomaly == null ? "" : s.anomaly >= 0 ? "pos" : "neg";
-  const sign = s.anomaly > 0 ? "+" : "";
   el.innerHTML = `
-    <div class="name"><span class="swatch" style="background:${s.color}"></span>${name}</div>
+    <div class="name"><span class="swatch" style="background:${s.color || t.color || "#888"}"></span>
+      <span class="dname">${esc(name)}</span>
+      ${PINNED && PINNED.name === name ? `<button class="unpin" title="Clear selection (Esc)" aria-label="Clear selection">×</button>` : ""}</div>
     <table>
       <tr><td class="k">Climatological normal</td><td class="v">${fmt(s.normal, "°C")}</td></tr>
       <tr><td class="k">Spatial spread (σ)</td><td class="v">${fmt(s.spread, "°C")}</td></tr>
       <tr><td class="k">Recent 12-mo mean</td><td class="v">${fmt(s.recent, "°C")}</td></tr>
-      <tr><td class="k">Anomaly vs normal</td><td class="v anom ${cls}">${s.anomaly == null ? "—" : sign + s.anomaly.toFixed(1) + "°C"}</td></tr>
-      <tr><td class="k">Ecoregions · samples</td><td class="v">${s.ecoregions} · ${s.n}</td></tr>
+      <tr><td class="k">Anomaly vs normal</td><td class="v anom ${cls}">${s.anomaly == null ? "—" : signed(s.anomaly) + "C"}</td></tr>
+      <tr><td class="k">Today's average</td><td class="v">${t.n ? fmt(t.day_avg, "°C") : "—"}</td></tr>
+      <tr><td class="k">Ecoregions · samples</td><td class="v">${s.ecoregions ?? "—"} · ${s.n ?? "—"}</td></tr>
     </table>
     <div class="note">Normal = the temperature that defines this biome, measured
       inside its real polygons. Anomaly = how the last year deviated from it.</div>`;
+  const x = el.querySelector(".unpin");
+  if (x) x.onclick = clearSelection;
+}
+
+// All 14 anomalies at a glance: diverging bars around 0, warmest first. The scale
+// is symmetric and shared, so bar length compares honestly across biomes.
+function buildAnomalyList() {
+  const rows = Object.entries(STATS).filter(([, s]) => s.anomaly != null)
+    .sort((a, b) => b[1].anomaly - a[1].anomaly);
+  const span = Math.max(1, Math.ceil(Math.max(...rows.map(([, s]) => Math.abs(s.anomaly)))));
+  document.getElementById("anom-axis").innerHTML =
+    `<span>${signed(-span, 0)}</span><span class="axis-mid">cooler ↔ warmer than normal</span><span>${signed(span, 0)}</span>`;
+  const list = document.getElementById("anom-list");
+  list.innerHTML = "";
+  rows.forEach(([name, s]) => {
+    const w = Math.abs(s.anomaly) / span * 50;
+    const row = document.createElement("div");
+    row.className = "arow";
+    row.dataset.b = name;
+    row.innerHTML = `<span class="chip" style="background:${s.color}"></span>
+      <span class="aname">${esc(short(name))}</span>
+      <span class="abar"><span class="abar-fill" style="${s.anomaly >= 0 ? "left:50%" : `left:${50 - w}%`};width:${w}%;background:${anomalyColor(s.anomaly)}"></span></span>
+      <span class="aval ${s.anomaly >= 0 ? "pos" : "neg"}">${signed(s.anomaly)}</span>`;
+    clickable(row, () => selectBiome(name, true), `${name}: ${signed(s.anomaly)}C vs normal`);
+    row.onmouseenter = () => preview(name);
+    row.onmouseleave = endPreview;
+    list.appendChild(row);
+  });
 }
 
 // A point's temperature → color on the daily axis (same scale as the range bars).
@@ -135,12 +214,12 @@ function showSamples(name, kind) {
   sampleMarkers.clearLayers();
   if (kind === "daily") {
     ((TODAY[name] || {}).samples || []).forEach(p =>
-      L.circleMarker([p.lat, p.lon], { radius: 4, color: "#fff", weight: 1,
+      L.circleMarker([p.lat, p.lon], { radius: 4, color: "#fff", weight: 1, bubblingMouseEvents: false,
           fillColor: tempColor(p.t), fillOpacity: 1 })
        .bindTooltip(`${p.t.toFixed(1)}° today`).addTo(sampleMarkers));
   } else {
     ((STATS[name] || {}).samples || []).forEach(p =>
-      L.circleMarker([p.lat, p.lon], { radius: 4, color: "#fff", weight: 1,
+      L.circleMarker([p.lat, p.lon], { radius: 4, color: "#fff", weight: 1, bubblingMouseEvents: false,
           fillColor: anomalyColor(p.anomaly), fillOpacity: 1 })
        .bindTooltip(`normal ${fmt(p.normal)} · recent ${fmt(p.recent)} · ${p.anomaly >= 0 ? "+" : ""}${p.anomaly}°`)
        .addTo(sampleMarkers));
@@ -153,6 +232,12 @@ function buildToday() {
   const dateEl = document.getElementById("today-date");
   const anyDate = rows[0] && rows[0][1].date;
   dateEl.textContent = anyDate || new Date().toISOString().slice(0, 10);
+  // The snapshot is rebuilt daily by CI; if that stalls, say so rather than
+  // presenting an old forecast as "today".
+  const ageDays = anyDate ? Math.floor((Date.now() - Date.parse(anyDate)) / 864e5) : 0;
+  dateEl.classList.toggle("stale", ageDays > 1);
+  dateEl.title = ageDays > 1 ? `Snapshot is ${ageDays} days old — the daily refresh hasn't run since` : "";
+  if (ageDays > 1) dateEl.textContent += ` · ${ageDays}d old`;
 
   document.getElementById("today-axis").innerHTML =
     `<span>${Math.round(axisMin)}°</span>` +
@@ -190,16 +275,17 @@ function buildToday() {
         }).join("");
         row.innerHTML = `
           <div class="trow-top"><span class="chip" style="background:${v.color}"></span>
-            <span class="tname">${short(name)}</span><span class="tavg">${v.day_avg.toFixed(0)}°</span></div>
+            <span class="tname">${esc(short(name))}</span><span class="tavg">${v.day_avg.toFixed(0)}°</span></div>
           <div class="bar"><div class="bar-range" style="left:${l}%;width:${w}%;background:${v.color}"></div>
             <div class="bar-avg" style="left:${pct(v.day_avg)}%"></div></div>
           <div class="ends"><span>${v.day_min.toFixed(0)}°</span><span>${v.day_max.toFixed(0)}°</span></div>
           ${cells ? `<div class="metrics">${cells}</div>` : ""}`;
       } else {
         row.innerHTML = `<div class="trow-top"><span class="chip" style="background:${v.color}"></span>
-          <span class="tname">${short(name)}</span><span class="tavg">—</span></div>`;
+          <span class="tname">${esc(short(name))}</span><span class="tavg">—</span></div>`;
       }
-      row.onclick = () => selectBiome(name, true, "daily");
+      if (PINNED && PINNED.name === name) row.classList.add("active");
+      clickable(row, () => selectBiome(name, true, "daily"), `${name}: today`);
       list.appendChild(row);
     });
 }
@@ -209,13 +295,16 @@ function buildToggles() {
   const box = document.getElementById("metric-toggles");
   box.innerHTML = "";
   METRICS.forEach(m => {
-    const b = document.createElement("div");
+    const b = document.createElement("button");
+    b.type = "button";
     b.className = "chipbtn" + (enabled.has(m.key) ? " on" : "");
-    b.innerHTML = `<span>${m.icon}</span>${m.label}`;
+    b.setAttribute("aria-pressed", enabled.has(m.key));
+    b.innerHTML = `<span aria-hidden="true">${m.icon}</span>${m.label}`;
     b.onclick = () => {
       enabled.has(m.key) ? enabled.delete(m.key) : enabled.add(m.key);
       saveEnabled();
       b.classList.toggle("on");
+      b.setAttribute("aria-pressed", enabled.has(m.key));
       buildToday();                     // re-render rows with the new selection
     };
     box.appendChild(b);
@@ -230,16 +319,24 @@ function buildLegend(geo) {
     .forEach(p => {
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `<span class="chip" style="background:${p.color}"></span>${short(p.biome)}`;
-      row.onclick = () => selectBiome(p.biome, true);
+      row.dataset.b = p.biome;
+      row.title = p.biome;
+      row.innerHTML = `<span class="chip" style="background:${p.color}"></span>${esc(short(p.biome))}`;
+      clickable(row, () => selectBiome(p.biome, true));
+      row.onmouseenter = () => preview(p.biome);
+      row.onmouseleave = endPreview;
       box.appendChild(row);
     });
 }
 
 // ── load everything ──────────────────────────────────────────────────────────
+const getJSON = url => fetch(url).then(r => {
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  return r.json();
+});
 Promise.all([
-  fetch("data/processed/biomes.geojson").then(r => r.json()),
-  fetch("data/processed/stats.json").then(r => r.json()),
+  getJSON("data/processed/biomes.geojson"),
+  getJSON("data/processed/stats.json"),
   // date query busts the CDN cache so a new day's rebuild is picked up immediately
   fetch(`data/processed/today.json?d=${new Date().toISOString().slice(0, 10)}`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
 ]).then(([geo, stats, today]) => {
@@ -250,29 +347,58 @@ Promise.all([
     onEachFeature: (f, layer) => {
       const name = f.properties.biome;
       layersByName[name] = layer;
-      layer.on("mouseover", () => selectBiome(name));
-      layer.on("click", () => selectBiome(name, true));
+      layer.on("mouseover", () => preview(name));
+      layer.on("mouseout", endPreview);
+      layer.on("click", e => { L.DomEvent.stopPropagation(e); selectBiome(name, true); });
     },
   }).addTo(map);
   buildLegend(geo);
   buildToggles();
   buildToday();
+  buildAnomalyList();
   map.invalidateSize();
+  document.getElementById("loading").remove();
+}).catch(err => {
+  console.error(err);
+  const el = document.getElementById("loading");
+  el.classList.add("error");
+  el.textContent = "Couldn't load the biome data — try reloading.";
 });
 
+map.on("click", () => { if (PINNED) clearSelection(); });   // click open water/basemap
 document.querySelectorAll('input[name="mode"]').forEach(r =>
-  r.addEventListener("change", e => { MODE = e.target.value; if (LAYER) LAYER.setStyle(styleFor); }));
+  r.addEventListener("change", e => {
+    MODE = e.target.value;
+    restyle();
+    document.getElementById("app").classList.toggle("mode-anomaly", MODE === "anomaly");
+  }));
 window.addEventListener("resize", () => map.invalidateSize());
 
+// Diverging-ramp key, shown on the map only in "anomaly" mode.
+const AnomKey = L.control({ position: "bottomleft" });
+AnomKey.onAdd = () => {
+  const div = L.DomUtil.create("div", "anom-key");
+  const stops = [-2.5, -1.25, 0, 1.25, 2.5].map(a => anomalyColor(a)).join(",");
+  div.innerHTML = `<div class="anom-key-title">Recent 12-mo anomaly</div>
+    <div class="anom-key-bar" style="background:linear-gradient(90deg,${stops})"></div>
+    <div class="anom-key-ticks"><span>≤ −2.5°</span><span>0</span><span>≥ +2.5°</span></div>`;
+  return div;
+};
+AnomKey.addTo(map);
+
 // ── collapsible side panels ──────────────────────────────────────────────────
+// Widths live in CSS (via classes) so the phone layout's media query can override them.
 let leftOpen = true, rightOpen = true;
 function updateLayout() {
-  document.getElementById("app").style.gridTemplateColumns =
-    `${leftOpen ? "320px" : "40px"} 1fr ${rightOpen ? "340px" : "40px"}`;
+  const app = document.getElementById("app");
+  app.classList.toggle("left-collapsed", !leftOpen);
+  app.classList.toggle("right-collapsed", !rightOpen);
   document.getElementById("left").classList.toggle("collapsed", !leftOpen);
   document.getElementById("right").classList.toggle("collapsed", !rightOpen);
   document.getElementById("left-toggle").textContent = leftOpen ? "‹" : "›";
   document.getElementById("right-toggle").textContent = rightOpen ? "›" : "‹";
+  document.getElementById("left-toggle").title = leftOpen ? "Collapse panel" : "Expand panel";
+  document.getElementById("right-toggle").title = rightOpen ? "Collapse panel" : "Expand panel";
   setTimeout(() => map.invalidateSize(), 200);        // after the width transition
 }
 document.getElementById("left-toggle").onclick = () => { leftOpen = !leftOpen; updateLayout(); };
@@ -283,7 +409,7 @@ document.getElementById("right-toggle").onclick = () => { rightOpen = !rightOpen
 // a failing feed shows "—" and never breaks the map or the other overlays.
 // Icon size scales *inversely* with zoom: bigger when zoomed out (easy to spot),
 // smaller when zoomed in (don't blanket the map). z2 → ~22px, z7 → ~12px.
-const hazSize = () => Math.round(22 - (map.getZoom() - 2) * 2);
+const hazSize = () => Math.round(Math.min(24, 22 - (map.getZoom() - 2) * 2));
 const hzIcon = (emoji, size = hazSize()) => L.divIcon({
   html: `<span style="font-size:${Math.round(size * 0.8)}px">${emoji}</span>`,
   className: "hz-icon", iconSize: [size, size], iconAnchor: [size / 2, size / 2],
@@ -320,10 +446,10 @@ async function loadQuakes() {                       // USGS — M2.5+, past 24h
   d.features.forEach(f => {
     const [lon, lat] = f.geometry.coordinates, mag = f.properties.mag;
     const base = 2 + Math.max(0, mag) * 1.4;        // magnitude-driven base radius
-    const cm = L.circleMarker([lat, lon], { radius: base * hazSize() / 16, color: "#ff453a",
+    const cm = L.circleMarker([lat, lon], { radius: base * hazSize() / 16, color: "#ff453a", bubblingMouseEvents: false,
         weight: 1, fillColor: "#ff453a", fillOpacity: 0.35 });
     cm._baseR = base;                               // remembered for zoom resizing
-    cm.bindPopup(`<b>M${(mag ?? 0).toFixed(1)}</b> — ${f.properties.place || "?"}<br><small>${new Date(f.properties.time).toUTCString()}</small>`).addTo(g);
+    cm.bindPopup(`<b>M${(mag ?? 0).toFixed(1)}</b> — ${esc(f.properties.place || "?")}<br><small>${new Date(f.properties.time).toUTCString()}</small>`).addTo(g);
   });
   return { layer: g, count: d.features.length };
 }
@@ -340,7 +466,7 @@ async function loadEonet(catId, days, emoji) {      // NASA EONET — volcanoes 
     if (geom.type === "Point") [lon, lat] = geom.coordinates;
     else if (geom.type === "Polygon") [lon, lat] = geom.coordinates[0][0];  // area event → a vertex
     else return;
-    emojiMarker(lat, lon, emoji, `<b>${emoji} ${e.title}</b><br><small>${(geom.date || "").slice(0, 10)}</small>`).addTo(g);
+    emojiMarker(lat, lon, emoji, `<b>${emoji} ${esc(e.title)}</b><br><small>${esc((geom.date || "").slice(0, 10))}</small>`).addTo(g);
   });
   return { layer: g, count: g.getLayers().length };
 }
@@ -353,7 +479,7 @@ async function loadGdacs(type, emoji) {
   const g = L.layerGroup();
   (d.features || []).filter(f => f.properties && f.properties.eventtype === type).forEach(f => {
     const [lon, lat] = f.geometry.coordinates, p = f.properties;
-    emojiMarker(lat, lon, emoji, `<b>${emoji} ${p.name || type}</b>${p.alertlevel ? ` <small>(${p.alertlevel} alert)</small>` : ""}`).addTo(g);
+    emojiMarker(lat, lon, emoji, `<b>${emoji} ${esc(p.name || type)}</b>${p.alertlevel ? ` <small>(${esc(p.alertlevel)} alert)</small>` : ""}`).addTo(g);
   });
   return { layer: g, count: g.getLayers().length };
 }
@@ -363,7 +489,7 @@ async function loadTsunami() {                       // USGS quakes flagged tsun
   const g = L.layerGroup();
   d.features.filter(f => f.properties.tsunami === 1).forEach(f => {
     const [lon, lat] = f.geometry.coordinates;
-    emojiMarker(lat, lon, "🌊", `<b>🌊 Tsunami-flagged</b> M${(f.properties.mag ?? 0).toFixed(1)} — ${f.properties.place || "?"}`).addTo(g);
+    emojiMarker(lat, lon, "🌊", `<b>🌊 Tsunami-flagged</b> M${(f.properties.mag ?? 0).toFixed(1)} — ${esc(f.properties.place || "?")}`).addTo(g);
   });
   return { layer: g, count: g.getLayers().length };
 }
@@ -380,20 +506,29 @@ const HAZARDS = [
 const hazardLayers = {};
 const loadHaz = () => { try { const s = JSON.parse(localStorage.getItem("ba_haz_v2")); if (Array.isArray(s)) return s; } catch (e) {} return HAZARDS.map(h => h.key); };
 const hazardOn = new Set(loadHaz());
-const saveHaz = () => localStorage.setItem("ba_haz_v2", JSON.stringify([...hazardOn]));
+const saveHaz = () => { try { localStorage.setItem("ba_haz_v2", JSON.stringify([...hazardOn])); } catch (e) {} };
+// Folded state of the overlay box: remembered; folded by default on small screens.
+const hazFolded = (() => { try { const v = localStorage.getItem("ba_haz_folded"); if (v !== null) return v === "1"; } catch (e) {} return innerWidth < 860; })();
 
 const HazControl = L.control({ position: "topright" });
 HazControl.onAdd = () => {
-  const div = L.DomUtil.create("div", "haz-control");
-  div.innerHTML = `<div class="haz-title">🌍 Earth activity <span class="haz-live">live</span></div>`;
+  const div = L.DomUtil.create("div", "haz-control" + (hazFolded ? " folded" : ""));
+  div.innerHTML = `<button type="button" class="haz-title" aria-expanded="${!hazFolded}">🌍 Earth activity <span class="haz-live">live</span><span class="haz-caret" aria-hidden="true">▾</span></button>`;
+  div.querySelector(".haz-title").onclick = () => {
+    const folded = div.classList.toggle("folded");
+    div.querySelector(".haz-title").setAttribute("aria-expanded", !folded);
+    try { localStorage.setItem("ba_haz_folded", folded ? "1" : "0"); } catch (e) {}
+  };
+  const body = L.DomUtil.create("div", "haz-body", div);
   HAZARDS.forEach(h => {
-    const row = L.DomUtil.create("label", "haz-row", div);
+    const row = L.DomUtil.create("label", "haz-row", body);
     row.innerHTML = `<input type="checkbox" ${hazardOn.has(h.key) ? "checked" : ""}> <span>${h.icon} ${h.label}</span> <span class="haz-count" id="hz-${h.key}">…</span>`;
     row.querySelector("input").addEventListener("change", e => toggleHazard(h.key, e.target.checked));
   });
-  const foot = L.DomUtil.create("div", "haz-foot", div);
+  const foot = L.DomUtil.create("div", "haz-foot", body);
   foot.textContent = "USGS · NASA EONET · GDACS";
   L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
   return div;
 };
 HazControl.addTo(map);

@@ -19,11 +19,23 @@ from .geo import simplify, ring_area, bbox
 
 EPS = 0.06          # simplification tolerance in degrees (~6 km)
 MIN_AREA = 0.004    # drop rings smaller than this (deg²) — removes tiny islets
+DP = 3              # coordinate decimals (~110 m) — ample for a ~6 km tolerance,
+                    # and cuts the file ~2.4x vs full float precision
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _round_ring(ring):
+    """Round to DP decimals, dropping consecutive duplicates that rounding creates."""
+    out = []
+    for x, y in ring:
+        p = [round(x, DP), round(y, DP)]
+        if not out or out[-1] != p:
+            out.append(p)
+    return out
+
+
 def _simplify_ring(ring):
-    r = simplify(ring, EPS)
+    r = _round_ring(simplify(ring, EPS))
     if r[0] != r[-1]:
         r.append(r[0])                       # keep GeoJSON rings closed
     return r
@@ -46,9 +58,13 @@ def build(stem):
             if abs(ring_area(poly[0])) < MIN_AREA:
                 continue
             simp = [_simplify_ring(poly[0])]
+            if len(simp[0]) < 4:             # collapsed to a sliver — nothing to draw
+                continue
             for hole in poly[1:]:
                 if abs(ring_area(hole)) >= MIN_AREA:
-                    simp.append(_simplify_ring(hole))
+                    h = _simplify_ring(hole)
+                    if len(h) >= 4:
+                        simp.append(h)
             b["polys"].append(simp)
 
     features = []
