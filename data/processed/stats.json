@@ -1,0 +1,646 @@
+{
+ "Boreal Forests/Taiga": {
+  "color": "#7AB6F5",
+  "ecoregions": 26,
+  "normal": -3.6,
+  "spread": 5.3,
+  "recent": -3.7,
+  "anomaly": -0.1,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 68.123,
+    "lon": 126.972,
+    "normal": -11.7,
+    "recent": -11.4,
+    "anomaly": 0.3
+   },
+   {
+    "lat": 57.888,
+    "lon": 65.084,
+    "normal": 2.1,
+    "recent": 2.9,
+    "anomaly": 0.8
+   },
+   {
+    "lat": 57.123,
+    "lon": 126.102,
+    "normal": -7.6,
+    "recent": -8.6,
+    "anomaly": -0.9
+   },
+   {
+    "lat": 61.145,
+    "lon": 93.198,
+    "normal": -2.2,
+    "recent": -3.2,
+    "anomaly": -1.0
+   },
+   {
+    "lat": 66.909,
+    "lon": 21.27,
+    "normal": 1.4,
+    "recent": 1.8,
+    "anomaly": 0.4
+   }
+  ]
+ },
+ "Deserts & Xeric Shrublands": {
+  "color": "#CC6767",
+  "ecoregions": 102,
+  "normal": 19.0,
+  "spread": 5.6,
+  "recent": 20.2,
+  "anomaly": 1.1,
+  "n": 5,
+  "samples": [
+   {
+    "lat": -26.623,
+    "lon": 139.213,
+    "normal": 24.3,
+    "recent": 24.2,
+    "anomaly": -0.1
+   },
+   {
+    "lat": 26.241,
+    "lon": 12.367,
+    "normal": 22.9,
+    "recent": 23.5,
+    "anomaly": 0.6
+   },
+   {
+    "lat": 43.8,
+    "lon": -107.985,
+    "normal": 8.4,
+    "recent": 10.7,
+    "anomaly": 2.3
+   },
+   {
+    "lat": 32.61,
+    "lon": 60.981,
+    "normal": 21.0,
+    "recent": 22.6,
+    "anomaly": 1.6
+   },
+   {
+    "lat": 37.848,
+    "lon": 63.074,
+    "normal": 18.6,
+    "recent": 19.9,
+    "anomaly": 1.3
+   }
+  ]
+ },
+ "Flooded Grasslands & Savannas": {
+  "color": "#BEE7FF",
+  "ecoregions": 25,
+  "normal": 16.8,
+  "spread": 12.6,
+  "recent": 16.4,
+  "anomaly": -0.5,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 48.754,
+    "lon": 135.162,
+    "normal": 2.2,
+    "recent": 2.4,
+    "anomaly": 0.3
+   },
+   {
+    "lat": 7.119,
+    "lon": 30.929,
+    "normal": 28.9,
+    "recent": 28.3,
+    "anomaly": -0.6
+   },
+   {
+    "lat": -16.483,
+    "lon": -59.068,
+    "normal": 26.4,
+    "recent": 25.7,
+    "anomaly": -0.7
+   },
+   {
+    "lat": -16.343,
+    "lon": -59.253,
+    "normal": 25.8,
+    "recent": 25.3,
+    "anomaly": -0.5
+   },
+   {
+    "lat": 51.305,
+    "lon": 128.316,
+    "normal": 0.8,
+    "recent": 0.0,
+    "anomaly": -0.8
+   }
+  ]
+ },
+ "Mangroves": {
+  "color": "#FE01C4",
+  "ecoregions": 19,
+  "normal": 25.8,
+  "spread": 0.4,
+  "recent": 25.7,
+  "anomaly": -0.1,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 22.557,
+    "lon": 89.962,
+    "normal": 25.5,
+    "recent": 25.2,
+    "anomaly": -0.3
+   },
+   {
+    "lat": -0.872,
+    "lon": 8.938,
+    "normal": 25.6,
+    "recent": 25.4,
+    "anomaly": -0.1
+   },
+   {
+    "lat": 8.495,
+    "lon": -78.345,
+    "normal": 26.3,
+    "recent": 26.2,
+    "anomaly": -0.1
+   },
+   {
+    "lat": 1.655,
+    "lon": 110.265,
+    "normal": 26.2,
+    "recent": 26.6,
+    "anomaly": 0.4
+   },
+   {
+    "lat": 24.696,
+    "lon": -78.251,
+    "normal": 25.5,
+    "recent": 25.2,
+    "anomaly": -0.3
+   }
+  ]
+ },
+ "Mediterranean Forests, Woodlands & Scrub": {
+  "color": "#FE0000",
+  "ecoregions": 40,
+  "normal": 17.4,
+  "spread": 1.6,
+  "recent": 17.4,
+  "anomaly": -0.0,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 31.361,
+    "lon": -5.67,
+    "normal": 17.2,
+    "recent": 18.2,
+    "anomaly": 1.0
+   },
+   {
+    "lat": -33.967,
+    "lon": 115.977,
+    "normal": 15.1,
+    "recent": 14.4,
+    "anomaly": -0.7
+   },
+   {
+    "lat": -30.225,
+    "lon": 119.144,
+    "normal": 19.8,
+    "recent": 19.5,
+    "anomaly": -0.3
+   },
+   {
+    "lat": -35.436,
+    "lon": 141.627,
+    "normal": 16.8,
+    "recent": 16.5,
+    "anomaly": -0.3
+   },
+   {
+    "lat": -33.701,
+    "lon": 145.818,
+    "normal": 18.3,
+    "recent": 18.5,
+    "anomaly": 0.3
+   }
+  ]
+ },
+ "Montane Grasslands & Shrublands": {
+  "color": "#D6C39D",
+  "ecoregions": 46,
+  "normal": 4.8,
+  "spread": 10.7,
+  "recent": 5.3,
+  "anomaly": 0.5,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 29.946,
+    "lon": 89.854,
+    "normal": -3.1,
+    "recent": -2.4,
+    "anomaly": 0.7
+   },
+   {
+    "lat": 30.941,
+    "lon": 93.772,
+    "normal": -11.0,
+    "recent": -8.4,
+    "anomaly": 2.6
+   },
+   {
+    "lat": -20.828,
+    "lon": -67.599,
+    "normal": 8.8,
+    "recent": 8.7,
+    "anomaly": -0.1
+   },
+   {
+    "lat": 7.452,
+    "lon": 37.206,
+    "normal": 9.8,
+    "recent": 9.8,
+    "anomaly": -0.1
+   },
+   {
+    "lat": 10.736,
+    "lon": 38.229,
+    "normal": 19.4,
+    "recent": 18.6,
+    "anomaly": -0.8
+   }
+  ]
+ },
+ "Temperate Broadleaf & Mixed Forests": {
+  "color": "#00734C",
+  "ecoregions": 83,
+  "normal": 10.7,
+  "spread": 3.8,
+  "recent": 10.8,
+  "anomaly": 0.1,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 28.291,
+    "lon": 112.936,
+    "normal": 18.2,
+    "recent": 19.6,
+    "anomaly": 1.3
+   },
+   {
+    "lat": 42.138,
+    "lon": -74.967,
+    "normal": 7.8,
+    "recent": 7.1,
+    "anomaly": -0.7
+   },
+   {
+    "lat": 43.954,
+    "lon": -89.846,
+    "normal": 8.2,
+    "recent": 8.5,
+    "anomaly": 0.3
+   },
+   {
+    "lat": 42.643,
+    "lon": -85.411,
+    "normal": 9.6,
+    "recent": 9.6,
+    "anomaly": 0.0
+   },
+   {
+    "lat": 50.701,
+    "lon": 21.539,
+    "normal": 9.5,
+    "recent": 9.2,
+    "anomaly": -0.3
+   }
+  ]
+ },
+ "Temperate Conifer Forests": {
+  "color": "#458970",
+  "ecoregions": 47,
+  "normal": 2.4,
+  "spread": 3.3,
+  "recent": 3.8,
+  "anomaly": 1.4,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 39.991,
+    "lon": -106.574,
+    "normal": 3.3,
+    "recent": 5.2,
+    "anomaly": 1.9
+   },
+   {
+    "lat": 36.371,
+    "lon": -106.789,
+    "normal": 7.1,
+    "recent": 9.3,
+    "anomaly": 2.2
+   },
+   {
+    "lat": 43.796,
+    "lon": -114.117,
+    "normal": -1.8,
+    "recent": -0.3,
+    "anomaly": 1.5
+   },
+   {
+    "lat": 51.634,
+    "lon": -121.035,
+    "normal": 4.4,
+    "recent": 5.9,
+    "anomaly": 1.5
+   },
+   {
+    "lat": 56.744,
+    "lon": -123.059,
+    "normal": -0.9,
+    "recent": -0.9,
+    "anomaly": 0.0
+   }
+  ]
+ },
+ "Temperate Grasslands, Savannas & Shrublands": {
+  "color": "#FEFF73",
+  "ecoregions": 48,
+  "normal": 13.4,
+  "spread": 5.9,
+  "recent": 14.2,
+  "anomaly": 0.8,
+  "n": 5,
+  "samples": [
+   {
+    "lat": -29.228,
+    "lon": 145.115,
+    "normal": 22.1,
+    "recent": 22.9,
+    "anomaly": 0.8
+   },
+   {
+    "lat": -34.561,
+    "lon": -60.15,
+    "normal": 17.0,
+    "recent": 16.3,
+    "anomaly": -0.7
+   },
+   {
+    "lat": 46.959,
+    "lon": -105.317,
+    "normal": 7.7,
+    "recent": 8.9,
+    "anomaly": 1.2
+   },
+   {
+    "lat": 49.371,
+    "lon": -111.893,
+    "normal": 6.3,
+    "recent": 7.8,
+    "anomaly": 1.4
+   },
+   {
+    "lat": 37.512,
+    "lon": -102.339,
+    "normal": 13.9,
+    "recent": 15.0,
+    "anomaly": 1.1
+   }
+  ]
+ },
+ "Tropical & Subtropical Coniferous Forests": {
+  "color": "#88CE66",
+  "ecoregions": 15,
+  "normal": 16.9,
+  "spread": 4.3,
+  "recent": 17.2,
+  "anomaly": 0.3,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 19.262,
+    "lon": -99.392,
+    "normal": 10.6,
+    "recent": 10.2,
+    "anomaly": -0.4
+   },
+   {
+    "lat": 17.648,
+    "lon": -98.725,
+    "normal": 17.1,
+    "recent": 17.1,
+    "anomaly": 0.0
+   },
+   {
+    "lat": 18.641,
+    "lon": -99.897,
+    "normal": 21.9,
+    "recent": 22.8,
+    "anomaly": 0.8
+   },
+   {
+    "lat": 22.213,
+    "lon": -104.834,
+    "normal": 21.2,
+    "recent": 21.9,
+    "anomaly": 0.7
+   },
+   {
+    "lat": 26.587,
+    "lon": -106.144,
+    "normal": 13.9,
+    "recent": 14.1,
+    "anomaly": 0.2
+   }
+  ]
+ },
+ "Tropical & Subtropical Dry Broadleaf Forests": {
+  "color": "#CCCD65",
+  "ecoregions": 56,
+  "normal": 20.6,
+  "spread": 5.6,
+  "recent": 20.4,
+  "anomaly": -0.2,
+  "n": 5,
+  "samples": [
+   {
+    "lat": -6.94,
+    "lon": -36.73,
+    "normal": 24.7,
+    "recent": 24.0,
+    "anomaly": -0.6
+   },
+   {
+    "lat": 20.344,
+    "lon": 80.722,
+    "normal": 26.1,
+    "recent": 25.2,
+    "anomaly": -1.0
+   },
+   {
+    "lat": 29.115,
+    "lon": -109.411,
+    "normal": 23.9,
+    "recent": 24.2,
+    "anomaly": 0.4
+   },
+   {
+    "lat": -19.852,
+    "lon": -64.862,
+    "normal": 11.0,
+    "recent": 11.2,
+    "anomaly": 0.2
+   },
+   {
+    "lat": 18.217,
+    "lon": -97.079,
+    "normal": 17.4,
+    "recent": 17.5,
+    "anomaly": 0.0
+   }
+  ]
+ },
+ "Tropical & Subtropical Grasslands, Savannas & Shrublands": {
+  "color": "#FEAA01",
+  "ecoregions": 58,
+  "normal": 25.3,
+  "spread": 3.1,
+  "recent": 25.3,
+  "anomaly": 0.0,
+  "n": 5,
+  "samples": [
+   {
+    "lat": -24.835,
+    "lon": 150.977,
+    "normal": 19.4,
+    "recent": 19.6,
+    "anomaly": 0.1
+   },
+   {
+    "lat": -4.127,
+    "lon": 21.636,
+    "normal": 25.5,
+    "recent": 25.3,
+    "anomaly": -0.2
+   },
+   {
+    "lat": -17.585,
+    "lon": 137.66,
+    "normal": 25.6,
+    "recent": 24.9,
+    "anomaly": -0.6
+   },
+   {
+    "lat": 12.929,
+    "lon": 26.191,
+    "normal": 27.5,
+    "recent": 28.0,
+    "anomaly": 0.5
+   },
+   {
+    "lat": 9.86,
+    "lon": 21.874,
+    "normal": 28.4,
+    "recent": 28.6,
+    "anomaly": 0.2
+   }
+  ]
+ },
+ "Tropical & Subtropical Moist Broadleaf Forests": {
+  "color": "#38A700",
+  "ecoregions": 230,
+  "normal": 23.2,
+  "spread": 1.8,
+  "recent": 22.8,
+  "anomaly": -0.4,
+  "n": 5,
+  "samples": [
+   {
+    "lat": -5.109,
+    "lon": -78.457,
+    "normal": 21.6,
+    "recent": 21.2,
+    "anomaly": -0.4
+   },
+   {
+    "lat": -1.418,
+    "lon": 12.236,
+    "normal": 23.5,
+    "recent": 22.9,
+    "anomaly": -0.5
+   },
+   {
+    "lat": 23.366,
+    "lon": 98.775,
+    "normal": 20.7,
+    "recent": 21.0,
+    "anomaly": 0.4
+   },
+   {
+    "lat": 5.198,
+    "lon": 11.885,
+    "normal": 24.7,
+    "recent": 24.2,
+    "anomaly": -0.5
+   },
+   {
+    "lat": 17.181,
+    "lon": -89.69,
+    "normal": 25.3,
+    "recent": 24.4,
+    "anomaly": -0.9
+   }
+  ]
+ },
+ "Tundra": {
+  "color": "#9ED7C2",
+  "ecoregions": 51,
+  "normal": -5.4,
+  "spread": 3.9,
+  "recent": -6.3,
+  "anomaly": -0.9,
+  "n": 5,
+  "samples": [
+   {
+    "lat": 66.498,
+    "lon": 73.647,
+    "normal": -4.5,
+    "recent": -5.4,
+    "anomaly": -0.9
+   },
+   {
+    "lat": 59.348,
+    "lon": -64.727,
+    "normal": -6.0,
+    "recent": -5.4,
+    "anomaly": 0.6
+   },
+   {
+    "lat": 69.593,
+    "lon": -157.805,
+    "normal": -7.6,
+    "recent": -8.3,
+    "anomaly": -0.7
+   },
+   {
+    "lat": 59.687,
+    "lon": -156.373,
+    "normal": 1.5,
+    "recent": -1.0,
+    "anomaly": -2.5
+   },
+   {
+    "lat": 73.121,
+    "lon": 90.725,
+    "normal": -10.3,
+    "recent": -11.5,
+    "anomaly": -1.2
+   }
+  ]
+ }
+}

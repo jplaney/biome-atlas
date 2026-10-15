@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Biome Atlas</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+  <div id="app">
+
+    <header id="topbar">
+      <div class="brand">🌍 Biome&nbsp;Atlas</div>
+      <div id="legend" class="legend"></div>
+      <div class="mode">
+        <span class="mode-label">Map color</span>
+        <label><input type="radio" name="mode" value="biome" checked> biome</label>
+        <label><input type="radio" name="mode" value="anomaly"> anomaly</label>
+      </div>
+    </header>
+
+    <aside id="left">
+      <button class="collapse-btn" id="left-toggle" title="Collapse panel">‹</button>
+      <div class="rail-label">Today</div>
+      <h2>Today <span id="today-date" class="tag"></span></h2>
+      <p class="sub">Immediate snapshot — each biome's live daily <b>min · avg · max</b>,
+        from the current forecast at its sample points.</p>
+      <div id="global-today" class="global"></div>
+      <div class="toggles-wrap">
+        <div class="toggles-label">Show metrics</div>
+        <div id="metric-toggles" class="toggles"></div>
+      </div>
+      <div id="today-axis" class="axis"></div>
+      <div id="today-list" class="today-list"></div>
+    </aside>
+
+    <main id="map"></main>
+
+    <aside id="right">
+      <button class="collapse-btn" id="right-toggle" title="Collapse panel">›</button>
+      <div class="rail-label">Trend</div>
+      <h2>Long-term trend</h2>
+      <p class="sub">Climatological normal (2011–2020) vs the recent 12 months.
+        Hover or click a biome.</p>
+      <div id="detail" class="detail empty">No biome selected.</div>
+    </aside>
+
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js?v=13"></script>
+</body>
+</html>

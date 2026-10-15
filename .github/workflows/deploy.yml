@@ -1,0 +1,51 @@
+name: Deploy Biome Atlas
+
+on:
+  push:
+    branches: [main]          # deploy on every code change
+  schedule:
+    - cron: "0 6 * * *"       # 06:00 UTC daily — refresh today.json
+  workflow_dispatch:          # manual "Run workflow" button
+
+# Least-privilege permissions the Pages deploy needs
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Regenerate the daily snapshot from live forecasts (pure stdlib, no pip).
+      # Non-fatal if a feed hiccups — the committed today.json is the fallback.
+      - name: Refresh today.json
+        run: python3 -m pipeline.build_today || echo "build_today had issues; using committed today.json"
+
+      # Assemble the static site: frontend at root, data under /data/processed.
+      - name: Assemble site
+        run: |
+          mkdir -p _site/data/processed
+          cp web/index.html web/app.js web/style.css _site/
+          cp data/processed/biomes.geojson data/processed/stats.json data/processed/today.json _site/data/processed/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
